@@ -1,0 +1,13 @@
+
+
+tokens_to_corrupt: 0.1
+
+restrict_to_present_tokens: True
+
+corruptions:
+  - alias: substitute_random_tokens
+    token_frac: ${corruption_robust.tokens_to_corrupt}
+    kwargs:
+      restrict_to_present_tokens: ${corruption_robust.restrict_to_present_tokens}
+      location: 'start'
+    

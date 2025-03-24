@@ -1,0 +1,11 @@
+
+
+tokens_to_corrupt: 0.1
+
+
+corruptions:
+
+  - alias: remove_random_tokens
+    token_frac: ${corruption_robust.tokens_to_corrupt}
+    kwargs:
+      location: 'start'

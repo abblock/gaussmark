@@ -1,0 +1,17 @@
+
+
+gen_name: kgw
+greenlist_ratio: 0.25
+bias: 2.0 # 1.0 #
+seeding_scheme: lefthash
+context_width: 1
+batch_size: 1
+
+
+do_watermarking: true
+
+alpaca_max_samples: 805
+
+oai_api_version: '2024-10-21'
+oai_model_name: gpt-35-turbo # gpt-4o
+oai_model_version: '1106' # '2024-05-13'

@@ -1,0 +1,42 @@
+
+master_parent: ${master_parent}
+
+seed: ${seed}
+device: ${device}
+
+is_unwatermarked_model: false
+
+model_path: null # e.g. ./models/microsoft-Phi-3-mini-4k-instruct_seed_133337/watermarked-model
+tokenizer: ${model.name} # microsoft/Phi-3-mini-4k-instruct
+max_model_len: 4096
+max_batch_size: 8
+enforce_eager: false
+max_num_seqs: 256
+limit: null # maximum number of examples per task.  If <=0 or null then no limit is applied.  If <1 then it is interpreted as a fraction of the dataset size.
+gpu_memory_utilization: 0.7
+
+
+engine: vllm # hf
+
+output_path: data/eval_results
+
+tasks:
+  - boolq
+  - cb
+  - copa
+  - multirc
+  - record
+  - rte
+  - wic
+  - wsc
+  - gsm8k_cot_self_consistency
+
+
+model:
+  name: ${model.name}
+  seed: ${model.seed}
+  rank_to_drop: ${model.rank_to_drop}
+
+
+
+track_memory_usage: false

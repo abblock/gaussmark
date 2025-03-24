@@ -1,0 +1,66 @@
+defaults:
+  - _self_
+  - lm_eval: superglue
+  - corruption_robust: compound
+  - other_gen: kgw
+
+
+seed: 133337
+device: cuda
+
+
+model:
+  name: 'microsoft/Phi-3-mini-4k-instruct' # 'meta-llama/Meta-Llama-3.1-8B' 'mistralai/Mistral-7B-v0.3' 'google/gemma-2-2b'  # 'meta-llama/Llama-2-7b-hf'  
+  seed: ${seed}
+  watermark_param_names:
+    # - lm_head.weight # How to watermark last layer.
+    - 31@@@down_proj@@@weight # watermarking layer@@@parameter@@@parameter_name 
+  watermark_variance: 1e-5
+  watermark_loss: cross_entropy
+  rank_to_drop: null # whether or not to use lowrank watermarker
+
+  watermark_overrides: null # if not null, overrides the watermarking parameters
+  robust_block_size: null # if not null, uses robust watermarking
+  robust_num_samples: 10
+  load_prewatermarked: True
+  path: null # if not null, loads model from path
+
+tokenizer:
+  name: ${model.name}
+
+
+data:
+  name: allenai/c4
+  subdata_name: realnewslike
+  split: train
+  max_samples: 1000
+  truncation_type: 'fixed' # 'fixed' or 'random'
+  prompt_field_name: text
+  max_prompt_length: 100
+  min_frac: 0.5
+  max_frac: 1.0
+
+
+sampling:
+  top_p: 0.9
+  top_k: -1 # Dont use
+  temperature: 1.0
+  seed: ${seed}
+  max_tokens: 1000
+  gpu_memory_utilization: 0.85
+  max_num_seqs: 128
+
+
+
+
+path_to_generations: null # if not null, pulls generations from blob mounted storage.
+corrupt_generations_path: null
+
+watermarking:
+  verbose: False
+
+master_parent: .
+
+
+hf_token_path: ./.hf_token
+
