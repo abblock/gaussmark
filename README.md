@@ -11,7 +11,7 @@ To run, first make a virtual environment and install the requirements with `pip 
 In order to generate watermarked text, run:
 
 ```python
-python src/generate_text.py model.name=<hf-path-to-model> model.watermark_param_names=[<layer>@@@<param>@@@weight] model.watermark_variance=<variance> model.rank_to_drop=<rank> data.name=<hf-path-to-data>
+python src/generate_text.py model.name=<hf-path-to-model> model.watermark_param_names=[<layer>@@@<param>@@@weight] model.watermark_variance=<variance> model.rank_to_drop=<rank> model.path=<path-to-save-watermarked-model> data.name=<hf-path-to-data>
 ```
 
 Some relevant parameters are:
@@ -20,6 +20,7 @@ Some relevant parameters are:
 - `model.watermark_variance` a float for the variance of the gaussian to be added, e.g. `1e-05`.  If unwatermarked text is desired, set this to 0.0.
 - `model.rank_to_drop` optionally use the RankReduced version of Gaussmark, from the paper.  If set to `0` then this is ignored and the vanilla Gaussmark is used.
 - `data.name` is a Huggingface path to a dataset, e.g., `allenai/c4`.  If changed, then `data.subdata_name` and `data.split` may have to be set as well.
+- `model.path` is a path to the directory where watermarked model is saved.  Can be set to `None`, in which case a default is used.
 
 These are Gaussmark specific parameters, which uses [vLLM](https://github.com/vllm-project/vllm) as a backbone for generation.  See the `sampling` parameters in `hydra_configs/hf_master.yaml` to change the sampling strategy.
 
@@ -31,9 +32,11 @@ This function saves the generations to a list of dictionaries containing the rel
 In order to use GaussMark for detection, run:
 
 ```python
-python src/detect_watermarks.py <configs-used-for-generation> path_to_generations=<path-to-generations>
+python src/detect_watermarks.py model.path=<model-path> path_to_generations=<path-to-generations>
 ```
-Note that the same parameters passed for generation have to be used for detection as the code assumes the watermarked model already exists.  If `path-to-generations` is set to `None`, as is the default, then we load from `./generations.json`, which is the default output of generation above.
+Note that either `model.path` has to be set or the same parameters passed for generation have to be used for detection as the code assumes the watermarked model already exists.  **If RankReduced GaussMark is used, the parameter `model.rank_to_drop` must be greater than 0 here.**  
+
+If `path-to-generations` is set to `None`, as is the default, then we load from `./generations.json`, which is the default output of generation above.
 
 The code saves a list of dictionaries, with each dictionary (associated to a given generation) having the following information:
 
@@ -43,3 +46,54 @@ The code saves a list of dictionaries, with each dictionary (associated to a giv
 
 
 We also store log-likelihoods under both watermarked and base models, which are reported in the paper in aggregate for several chosen models.
+
+
+
+## Evaluating Watermarked Models
+
+In addition to generating watermarked text and getting p-values, in the paper we consider a number of evaluations of both model and watermark quality, the code for which is described here.
+
+### Getting SuperGLUE and GSM8K evaluation
+
+One way in which we evaluated model quality in the paper (producing, e.g., Tables 4-6) was to evaluate GaussMark and the corresponding Base Model on the [SuperGlUE](https://arxiv.org/abs/1905.00537) benchmark.  For this evaluation, we used the [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness).  Running `python src/lm_eval.py model.path=<watermarked-model-path>` suffices to get the scores reported in the paper (SuperGLUE and GSM8K).  Results are stored as they are by the lm-evaluation-harness. 
+
+### GaussMark Robustness
+
+In order to evaluate the extent to which GaussMark is robust to token- and sequence-level corruptions, we examined the effect that token-level edits (deletions, additions, and substitutions) as well as sequence-level edits (roundtrip translation with a smaller LM) had on the p-values.  To get GaussMark p-values under corruption, run:
+```python
+python src/corrupt_detect_watermarks.py model.path=<path-to-watermarked-model> path_to_generations=<path-to-watermarked-generations> corrupt_generations_path=<path-to-output> corruption_robust=<corruption_robust>
+```
+
+Some relevant parameters are:
+
+- `model.path` is the path to the watermarked model.
+- `path_to_generations` is the path to the output of a call to `python src/generat_text.py`.
+- `corrupt_generations_path` is the path to the output file of corrupted generations and p-values.
+- `corruption_robust` can be set to one of several values, in particular the filenames without extensions in `hydra_configs/corruption_robust`.  The simplest is to set it to `roundtrip_translation` in which case the sequence is given a roundtrip translation through French.  Other options are token-level corruptions, e.g. `add_random_tokens`.  For these corruptions, set `corruption_robust.tokens_to_corrupt=<fraction-corrupted-tokens>`, where the fraction is multiplied by the length of the entire text to determine the number of corrupted tokens.  If tokens should only be added at the start (to the prompt), then use `add_start_tokens`.
+
+
+### Comparing GaussMark to [KGW](https://arxiv.org/abs/2301.10226)
+
+In the paper, we compared GaussMark to the approach of [Kirchenbauer et al 2023](https://arxiv.org/abs/2301.10226), which is implemented on [Huggingface](https://huggingface.co/docs/transformers/v4.49.0/en/internal/generation_utils#transformers.WatermarkingConfig).  In order to generate and detect watermarked text using this approach, one could run `python src/kgw_generate.py` with params set in `hydra_configs/other_gen/kgw.yaml`.  To 
+compare the effect of text corruption on this scheme to GaussMark, run `python src/kgw_corrupt_detect.py corruption_robust=<corruption>`, with corruption parameters set as above. 
+
+### AlpacaEval
+
+We also used [AlpacaEval](https://github.com/tatsu-lab/alpaca_eval) to evaluate the quality of watermarked models.  Unfortunately, because we used internal endpoints to call GPT-4o, the code will not be publicly available (nor would it be widely relevant even were it so); to replicate these experiments, use the code provided by the AlpacaEval repo, linked above with the evaluator set to GPT-4o and the comparator responses set to the Base Model's generations.
+
+
+
+
+
+# Citation
+
+If you use this code, please cite the paper with the following BibTex:
+
+```
+@article{block2025gaussmark,
+  title={GaussMark: A Practical Approach for Structural Watermarking of Language Models},
+  author={Block, Adam and Sekhari, Ayush and Rakhlin, Alexander},
+  journal={arXiv preprint arXiv:2501.13941},
+  year={2025}
+}
+```
