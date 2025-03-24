@@ -172,3 +172,15 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+## Venv
+gaussian-watermarking/
+
+
+## Outputs
+data/
+models/
+generations.json
+corrupt_generations.json
+outputs/
